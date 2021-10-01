@@ -327,7 +327,7 @@ function Reduce_log(){
 		let dstp = parseInt( document.getElementById("reduceInt").value ) ;
 		pointer = 0;
 		get_trkptdata(pointer);
-		readTxt2 = readTxt.substring( 0, trkpArr[0] ) + trkpArr[5];
+		readTxt2 = readTxt.substring( 0, trkpArr[0] ) + trkpArr[5] + "\n";
 		while (trkpArr[0] != -1) {
 			trkpArrPrv = trkpArr.slice(); // 起点となるtrkpArrをtrkpArrPrvにコピー
 			let AccDis = 0;
@@ -339,7 +339,7 @@ function Reduce_log(){
 				CurIdo = trkpArr[1];		CurKeido = trkpArr[2];
 				AccDis = hubeny(PrevIdo, PrevKeido, CurIdo, CurKeido); // 起点のtrkptとの距離
 			}
-			readTxt2 += trkpArr[5];
+			readTxt2 += trkpArr[5] + "\n";
 		}
 		readTxt2 += readTxt.substr( readTxt.lastIndexOf("</trkseg>") );// フッター
 		readTxt = readTxt2;

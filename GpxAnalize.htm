@@ -1,0 +1,847 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <title>ログ解析</title>
+  <style>
+	body { width: 90%; max-width: 900px; min-width: 480px; margin: 0 auto; }
+	#selfile { border: 2px dashed #bbb; padding: 20px; }
+	canvas { display:block; background:#fafafa; margin:0 auto; }
+  </style>
+  <script>
+  	const UpRng0 = 10, DnRng0 = -10;
+  	const UpRng1 = 20, DnRng1 = -20;
+  	const UpRng2 = 40, DnRng2 = -40;
+  	const UpRng3 = 60, DnRng3 = -60;
+  	const UpRng4 = 80, DnRng4 = -80;
+  	const UpRng5 = 100, DnRng5 = -100;
+  	window.onload = function() {
+  	document.getElementById("thUp0").value = UpRng0; 	document.getElementById("thDwn0").value = DnRng0;
+  	document.getElementById("thUp1").value = UpRng1; 	document.getElementById("thDwn1").value = DnRng1;
+  	document.getElementById("thUp2").value = UpRng2; 	document.getElementById("thDwn2").value = DnRng2;
+  	document.getElementById("thUp3").value = UpRng3; 	document.getElementById("thDwn3").value = DnRng3;
+  	document.getElementById("thUp4").value = UpRng4; 	document.getElementById("thDwn4").value = DnRng4;
+  	document.getElementById("thUp5").value = UpRng5; 	document.getElementById("thDwn5").value = DnRng5;
+  	}
+  </script>
+</head>
+<body>
+	【ログ解析v1.1】 <b>破線のエリアにログ(GPX)ファイルをドロップするか、ボタンを押してファイルを選択してください。</b>
+	<form name="entFil">	
+		<input type="file" id="selfile"><br>
+<!-- テキストエリア表示する場合はコメントにしない 
+		<label for="read_txt">入力ファイルの内容：</label> <br>
+		<textarea name="read_txt" rows="5" cols="70" readonly></textarea><br>
+-->
+	</form>
+
+	<div style="float:left; width: 33%;">
+		<li style="list-style: none;">ファイル名：<span id="filname"></span></li>
+		<li style="list-style: none;">サイズ：<span id="size"></span>(byt)</li>
+		<li style="list-style: none;">ログ日付：<span id="actdate"></span></li>
+		<li style="list-style: none;">総trkpt数：<span id="numPoint1"></span></li>
+		<li style="list-style: none;">有効trkpt数：<span id="numPoint2"></span></li>
+	</div>
+	<div style="float:left; width: 33%;">
+		<li style="list-style: none;">開始時間：<span id="startTim"></span></li>
+		<li style="list-style: none;">終了時間：<span id="endTim"></span></li>
+		<li style="list-style: none;">合計時間：<span id="ttlTim"></span></li>
+		<li style="list-style: none;">停止時間：<span id="stpTim"></span></li>
+		<li style="list-style: none;">合計距離：<span id="ttlDist"></span></li>
+	</div>
+	<div style="float:right; width: 33%;">
+		<li style="list-style: none;">沿面距離：<span id="ttlDist1"></span></li>
+		<li style="list-style: none;">最高地点の標高：<span id="maxAlti"></span></li>
+		<li style="list-style: none;">最低点地の標高：<span id="minAlti"></span></li>
+		<li style="list-style: none;">累積標高(上り)：<span id="ttlUp"></span></li>
+		<li style="list-style: none;">累積標高(下り)：<span id="ttlDwm"></span></li>
+	</div>
+
+	<div style="float:left;">
+	<canvas id="cnvs1" width="600" height="300"></canvas>
+	</div><br clear="left">
+
+	<div style="float:left;">
+	<form name="selbttn1">
+		🞛標高グラフのX軸：
+		<input type="radio" name="GraSel" value="Dist" checked> 距離
+		<input type="radio" name="GraSel" value="Time" > 時間
+	</form>
+
+	🞛ログの最初から<input type="number" id="waitT" size="4"  min="0" value="0" style="width:3em;">分間のデータは使わない<br>
+	<form name="selbttn2">
+		🞛データの間引き：
+		<input type="radio" name="reduce" value="no" checked> しない
+		<input type="radio" name="reduce" value="yes" > する
+		<input type="number" id="reduceInt" size="4"  min="0" max="50" value="10" style="width:3em;">ｍ間隔でを間引く<br>
+	</form>
+	</div>
+
+	<form name="reclc">
+		<br>
+		<span>　　　　　</span>
+		<input type="button" onclick="Recalcu()" value="再表示">
+		<p id="output_message"> </p>
+	</form>
+	<br clear="left">
+
+	<table style="border:solid 1px; width: 100%;">
+		<tr><th colspan="3">上り</th><th colspan="3">下り</th></tr>
+		<tr align="center">
+			<th>傾斜</th><th>距離合計(Km)</th><th>平均速度(Km/h)</th>
+			<th>傾斜</th><th>距離合計(Km)</th><th>平均速度(Km/h)</th>
+		</tr>
+		<tr align="center">
+			<td><input type="number" id="thUp0" size="6"  min="1" max="200" style="width:3em;">/100mまで</td>
+			<td id="up0dist">0</td><td id="up0velo">0</td>
+			<td><input type="number" id="thDwn0" size="6"  min="-200" max="-1" style="width:3em;">/100mまで</td>
+			<td id="dwn0dist">0</td><td id="dwn0velo">0</td>
+		</tr>
+		<tr align="center">
+			<td><input type="number" id="thUp1" size="6"  min="1" max="200" style="width:3em;">/100mまで</td>
+			<td id="up1dist">0</td><td id="up1velo">0</td>
+			<td><input type="number" id="thDwn1" size="6"  min="-200" max="-1" style="width:3em;">/100mまで</td>
+			<td id="dwn1dist">0</td><td id="dwn1velo">0</td>
+		</tr>
+		<tr align="center">
+			<td><input type="number" id="thUp2" size="6"  min="1" max="200" style="width:3em;">/100mまで</td>
+			<td id="up2dist">0</td><td id="up2velo">0</td>
+			<td><input type="number" id="thDwn2" size="6"  min="-200" max="-1" style="width:3em;">/100mまで</td>
+			<td id="dwn2dist">0</td><td id="dwn2velo">0</td>
+		</tr>
+		<tr align="center">
+			<td><input type="number" id="thUp3" size="6"  min="1" max="200" style="width:3em;">/100mまで</td>
+			<td id="up3dist">0</td><td id="up3velo">0</td>
+			<td><input type="number" id="thDwn3" size="6"  min="-200" max="-1" style="width:3em;">/100mまで</td>
+			<td id="dwn3dist">0</td><td id="dwn3velo">0</td>
+		</tr>
+		<tr align="center">
+			<td><input type="number" id="thUp4" size="6"  min="1" max="200" style="width:3em;">/100mまで</td>
+			<td id="up4dist">0</td><td id="up4velo">0</td>
+			<td><input type="number" id="thDwn4" size="6"  min="-200" max="-1" style="width:3em;">/100mまで</td>
+			<td id="dwn4dist">0</td><td id="dwn4velo">0</td>
+		</tr>
+		<tr align="center">
+			<td><input type="number" id="thUp5" size="6"  min="1" max="200" style="width:3em;">/100mまで</td>
+			<td id="up5dist">0</td><td id="up5velo">0</td>
+			<td><input type="number" id="thDwn5" size="6"  min="-200" max="-1" style="width:3em;">/100mまで</td>
+			<td id="dwn5dist">0</td><td id="dwn5velo">0</td>
+		</tr>
+		<tr align="center">
+			<td>それ以上の傾斜</td>
+			<td id="up6dist">0</td><td id="up6velo">0</td>
+			<td>それ以上の傾斜</td>
+			<td id="dwn6dist">0</td><td id="dwn6velo">0</td>
+		</tr>
+	</table>
+	<br>
+
+	<a id="getLocal" href="#" onClick="downloadText()">
+	<span style="border: 1px solid #000000; background-color: #dcdcdc">データをCSVファイルに保存</SPAN></a>
+	<br><br>
+	<a id="getLocal2" href="#" onClick="download2log()">
+	<span style="border: 1px solid #000000; background-color: #dcdcdc">間引きログをファイルに保存</SPAN></a>
+	<br><br>
+
+	<div style="float:left;">
+	<canvas id="cnvs2" width="600" height="300"></canvas>
+	</div><br clear="left">
+
+<form name="selbttn3">🞛分布図 X軸max
+	<input type="radio" name="XsMaxVal" value="200" checked> 200m
+	<input type="radio" name="XsMaxVal" value="100" > 100m
+	<input type="radio" name="XsMaxVal" value="50" > 50m
+</form><br>
+
+
+<script>
+
+var pointer = 0; //trkpt検索用ポインタ
+var trkpArr = [0, 0, 0, 0,"", ""]; // trkptArr = [pointer, latVal, lonVal, eleVal,  "timeStr", "trkptStr"]
+var trkpArrPrv = [0, 0, 0, 0,"", ""]; 
+var readTxt = "", readTxt1 = ""; //読み込みファイルの文字列バッファ
+var writeTex1 = "", writeTex2 = "", writeTex3 = ""; // サマリー出力用文字列バッファ
+var writeFilNam = ""; //出力ファイル名
+var flgErr1 = 0; // エラーフラグ 0:ファイル未読 1:OK  2:時間データ無し
+var PtDistArr = [], PtElevArr = [], PtBaloArr = [], PtTimeArr = [], PtVeloArr = [], PtTmDifArr = [], PtSlopArr = []; // データ配列
+var MovVeloArr = []; RestFlagArr = []; // 休憩時間判定用 移動平均速度、休息フラグ
+
+
+var obj1 = document.getElementById("selfile");
+//ファイル読み込み step1
+obj1.addEventListener("change",function(evt){
+	var file = evt.target.files;
+// テキストエリア表示する場合はコメントにしない	document.entFil.read_txt.value = "";
+  // 入力されたファイルの情報を取得
+	var input = document.querySelector("#selfile").files[0];
+  // ファイル情報を表示
+	document.querySelector("#filname").innerHTML = input.name;
+	writeTex1 = "ファイル名前," + input.name + "\n";
+	writeFilNam = input.name; //出力ファイル名前に使う
+	document.querySelector("#size").innerHTML = input.size;
+  //FileReaderの作成
+	var reader = new FileReader();
+	reader.readAsText(file[0]);
+  //読込終了後の処理
+	reader.onload = function(ev){
+// テキストエリア表示する場合はコメントにしない 		document.entFil.read_txt.value = reader.result; //テキストエリアに表示
+		readTxt = readTxt1 = reader.result; //読み込んだテキストを変数readTxt,readTxt1に入れる
+		pointer = reader.result.indexOf("<gpx");
+		if (pointer !== -1 && reader.result.indexOf("</gpx>") !== -1 ){
+//			alert("GPXファイルです");
+			disp_clr();
+			flgErr1 = 1;
+			get_trkptdata(pointer);
+			if ( trkpArr[4] !== "" ){ 
+				document.querySelector("#actdate").innerHTML = div_day_tim(trkpArr[4])[0];
+				writeTex1 += "ログ日付," + div_day_tim(trkpArr[4])[0] + "\n";
+			}else{
+				flgErr1 = 2; // 時間データ無しフラグセット
+			}
+			if ( trkpArr[4] !== "" ){
+				document.querySelector("#startTim").innerHTML = div_day_tim(trkpArr[4])[1];
+				writeTex1 += "開始時間," + div_day_tim(trkpArr[4])[1] + "\n";
+			}else{
+			}
+			get_trkptdata(reader.result.lastIndexOf("<trkpt")-1);
+			if ( trkpArr[4] !== "" ){ 
+				document.querySelector("#endTim").innerHTML = div_day_tim(trkpArr[4])[1];
+				writeTex1 += "終了時間," + div_day_tim(trkpArr[4])[1] + "\n";
+			}else{
+			}
+	// データ解析、表示
+			make_data_arry(); // step2
+			rest_matk(); // step3
+			deel_summary(); // step4
+			drw_ele_graph(); // step5
+			drw_sct_plot(); //step6
+		}else{
+			alert("GPXファイルではありません");
+			disp_clr();			
+			flgErr1 = 0;
+		}	
+	 }
+},false);
+
+
+function disp_clr(){
+// 各表示のクリア
+	document.querySelector("#actdate").innerHTML = "";
+	document.querySelector("#startTim").innerHTML = "";
+	document.querySelector("#endTim").innerHTML =  "";
+	document.querySelector("#ttlUp").innerHTML = "";
+	document.querySelector("#ttlDwm").innerHTML = "";
+	document.querySelector("#ttlTim").innerHTML = "";
+	document.querySelector("#maxAlti").innerHTML = "";
+	document.querySelector("#minAlti").innerHTML = "";
+	document.querySelector("#ttlDist").innerHTML = "";
+	document.querySelector("#numPoint1").innerHTML = "";
+	document.querySelector("#numPoint2").innerHTML = "";
+	let BtnSts1 = document.getElementsByName( "GraSel" );
+	BtnSts1[0].checked = true;
+	let BtnSts2 = document.getElementsByName( "reduce" );
+	BtnSts2[0].checked = true;
+	document.getElementById( "reduceInt" ).value = "10";
+	document.getElementById( "waitT" ).value = "0";
+	let cvs1 = document.getElementById("cnvs1"); // 標高グラフ消去
+	let cntx = cvs1.getContext("2d");
+	cntx.clearRect(0, 0, cvs1.getAttribute("width"), cvs1.getAttribute("height"));	
+	let cvs2 = document.getElementById("cnvs2"); // 散布図消去
+	let cntx2 = cvs2.getContext("2d");
+	cntx2.clearRect(0, 0, cvs2.getAttribute("width"), cvs2.getAttribute("height"));
+	return;
+}
+
+function div_day_tim(strDayTim){ 
+// 日付時間をUTCからJSTに変換し、日付文字列を分割、桁合わせ
+	let timeObj = new Date(strDayTim);
+	timeObj.setHours(timeObj.getHours() + 9); // UTC to JST
+	let yyyymmdd = timeObj.toLocaleString().split(' ')[0].replace(/\//g, "-");
+	let StrArr = yyyymmdd.split("-");
+	if (StrArr[1].length < 2){ StrArr[1] = "0" + StrArr[1];}
+	if (StrArr[2].length < 2){ StrArr[2] = "0" + StrArr[2];}
+	yyyymmdd = StrArr[0] +"-"+ StrArr[1] +"-"+ StrArr[2];
+	let hhmmss = timeObj.toLocaleString().split(' ')[1];
+	StrArr =  hhmmss.split(":");
+	if (StrArr[0].length < 2){ StrArr[0] = "0" + StrArr[0];}
+	if (StrArr[1].length < 2){ StrArr[1] = "0" + StrArr[1];}
+	if (StrArr[2].length < 2){ StrArr[2] = "0" + StrArr[2];}
+	hhmmss = StrArr[0] +":"+ StrArr[1] +":"+ StrArr[2];
+	return day_tim = [yyyymmdd, hhmmss];
+}
+
+function get_trkptdata(pointer){
+// 文字列readTxtのpinterの位置から<trkptを検索しtrkptの経度、緯度、標高、時間を返す
+// 引数：(検索文字列、検索位置) 返値：[pointer, Lat, Lon, ele, strTime, trkptStr] "trkpt"が見つからない時はpointerに-1
+	pointer = readTxt.indexOf("<trkpt",pointer);
+	if (pointer === -1){ return trkpArr = [pointer, 0, 0, 0, "", ""]; }
+	let trkptStr = readTxt.substring(pointer, readTxt.indexOf("</trkpt>",pointer)+8);
+	let Latpt = trkptStr.indexOf("lat=");
+	let Lonpt = trkptStr.indexOf("lon=");
+	strLat = trkptStr.substring( Latpt+5, trkptStr.indexOf('"', Latpt+5) );
+	strLon = trkptStr.substring( Lonpt+5, trkptStr.indexOf('"', Lonpt+5) );
+	let strEle, strTime;
+	( trkptStr.indexOf("<ele>") !== -1 ) ? strEle = trkptStr.substring( trkptStr.indexOf("<ele>")+5, trkptStr.indexOf("</ele>") ): strEle = "0";
+	( trkptStr.indexOf("<time>") !== -1 ) ? strTime = trkptStr.substring( trkptStr.indexOf("<time>")+6, trkptStr.indexOf("Z") ): strTime = "";
+	return trkpArr = [pointer, parseFloat(strLat), parseFloat(strLon), parseFloat(strEle), strTime, trkptStr];
+}
+
+function hubeny(ido1,keido1,ido2,keido2){ 
+// 2つの緯度、経度から２点間の距離を求める
+	const pai = Math.PI;
+	let P = (ido1 + ido2) / 2 * pai / 180;
+	let dP = (ido1 - ido2) * pai / 180;
+	let dR = (keido1 - keido2) * pai / 180;
+	let M = 6334834 / Math.sqrt(Math.pow((1 - 0.006674 * Math.sin(P) * Math.sin(P)),3));
+	let N = 6377397 / Math.sqrt(1 - 0.006674 * Math.sin(P) * Math.sin(P));
+	return D = Math.sqrt((M * dP) * (M * dP) + (N * Math.cos(P) * dR) * (N * Math.cos(P) * dR));
+}
+
+
+function Reduce_log(){
+// ログ開始部除去＆間引き
+	readTxt = readTxt1; // readTxtを読込み文字列に戻す
+  // ログ開始部除去	
+	let readTxt2 = "";
+	let pstTim = 0;
+	let wt = parseInt( document.getElementById("waitT").value ) * 60000;
+	if ( wt != 0){
+		pointer = 0;
+		get_trkptdata(pointer);
+		readTxt2 = readTxt.substring( 0, trkpArr[0] );
+		let initTimObj = new Date(trkpArr[4]);
+		let initTim = initTimObj.getTime();
+		while ( pstTim < wt ){
+			pointer = trkpArr[0] + 1;
+			get_trkptdata(pointer);
+			let CurTimObj = new Date(trkpArr[4]);
+			pstTim = CurTimObj.getTime() - initTim;
+		}
+		readTxt2 = readTxt2 + readTxt.substr( trkpArr[0] );
+		readTxt = readTxt2;
+	}
+
+  // データ間引き
+	readTxt2 = "";
+	if ( document.selbttn2.reduce.value === "yes" ){
+		let dstp = parseInt( document.getElementById("reduceInt").value ) ;
+		pointer = 0;
+		get_trkptdata(pointer);
+		readTxt2 = readTxt.substring( 0, trkpArr[0] ) + trkpArr[5];
+		while (trkpArr[0] != -1) {
+			trkpArrPrv = trkpArr.slice(); // 起点となるtrkpArrをtrkpArrPrvにコピー
+			let AccDis = 0;
+			while ( AccDis <= dstp  ) {
+				pointer = trkpArr[0] + 1;
+				get_trkptdata(pointer);
+				if ( trkpArr[0] === -1) {break;}
+				PrevIdo = trkpArrPrv[1];	PrevKeido = trkpArrPrv[2];
+				CurIdo = trkpArr[1];		CurKeido = trkpArr[2];
+				AccDis = hubeny(PrevIdo, PrevKeido, CurIdo, CurKeido); // 起点のtrkptとの距離
+			}
+			readTxt2 += trkpArr[5];
+		}
+		readTxt2 += readTxt.substr( readTxt.lastIndexOf("</trkseg>") );// フッター
+		readTxt = readTxt2;
+	}
+//	document.getElementById("output_message").innerHTML = "間引き完了";
+}
+
+
+function make_data_arry(){
+// trkpt毎に標高、前ポイントからの経過時間/距離/標高差/速度の配列を作る
+// PtTimeArr[]経過時間sec, PtElevArr[]標高m, PtDistArr[]距離差m, PtBaloArr[]昇降値m, PtVeloArr[]速度,PtTmDifArr[]時間差sec
+	let PrevIdo, PrevKeido, PrevEle, CurIdo, CurKeido, CurEle;
+	let PtDis, PtEle, Balo, PtVelo;
+	PtDis = PtEle = Balo = PtVelo = 0;
+  // 連続読み込みの為に配列クリア
+	PtTimeArr.length = 0; PtElevArr.length = 0; PtDistArr.length = 0; PtBaloArr.length = 0; PtVeloArr.length = 0; PtTmDifArr.length = 0, PtSlopArr.length = 0;
+
+  // 初期値の設定
+	pointer = 0;
+	let totalPint = 1; // trkpt総数
+	get_trkptdata(pointer); 	// trkpArr[pointer, latVal, LonVal,  eleVal, timStr, trkptStr]
+	PtTimeArr.push(0);			// 経過時間
+	PtElevArr.push(trkpArr[3]);	// 標高
+	PtDistArr.push(0);			// 距離差
+	PtBaloArr.push(0);			// 昇降値
+	PtVeloArr.push(0);			// 速度
+	PtTmDifArr.push(0);			// 時間差
+	PtSlopArr.push(0);			// 沿面距離
+	let accEleUp = 0; let accEleDwn = 0; // 累積標高差積算用
+	let tmDifTmp = 0;
+	trkpArrPrv = trkpArr.slice(); // 最初のtrkpArrをtrkpArrPrvにコピー
+
+  // ----- 配列作成ループ -----
+	while ( trkpArr[0] !== -1 ) {
+		pointer = trkpArrPrv[0] + 1;
+		get_trkptdata(pointer);
+		if ( trkpArr[0] == -1 ){break;}
+		totalPint++;
+
+		PrevIdo = trkpArrPrv[1];	PrevKeido = trkpArrPrv[2];	PrevEle = trkpArrPrv[3];
+		CurIdo = trkpArr[1];		CurKeido = trkpArr[2];		CurEle = trkpArr[3];
+		PtDis = hubeny(PrevIdo, PrevKeido, CurIdo, CurKeido); // 前のtrkptとの距離
+		PtEle = CurEle - PrevEle; // 前のtrkptとの標高差
+		let Balo = ( (PtDis === 0) || isNaN( PtEle / PtDis) ) ? 0: PtEle / PtDis; // 昇降値 m/m
+		let tm1 = new Date(trkpArrPrv[4]);
+		let tm2 = new Date(trkpArr[4]);
+		let tmDif = ( tm2.getTime() - tm1.getTime() ) / 1000; // 時間差sec
+		PtVelo = ((tmDif===0) || isNaN(PtDis/ tmDif)) ? 0: PtDis/ tmDif;
+
+  //PtEle PtVelo で異常値が出た場合はストリームに書き込みしない
+		if ( (Math.abs(PtEle/tmDif) > 2) || ( PtVelo > 5 ) ){
+			tmDifTmp += tmDif;
+		}else{
+			(PtEle >= 0) ? accEleUp += PtEle: accEleDwn += PtEle * (-1);
+			PtTimeArr.push(tmDif + tmDifTmp);		// 経過時間 sec
+			PtElevArr.push(trkpArr[3]);		// 標高 m
+			PtDistArr.push(PtDis);			// 距離差 m
+			PtBaloArr.push(Balo);			// 昇降値 m/m
+			PtVeloArr.push(PtVelo);			// 速度 m/sec
+			PtTmDifArr.push(tmDif);			// 時間差 sec
+			PtSlopArr.push(Math.sqrt( PtDis * PtDis + PtEle * PtEle )); // 沿面距離 m
+			tmDifTmp = 0;
+		}
+		trkpArrPrv = trkpArr.slice(); // 次の検索の為にtrkpArrをtrkpArrPrvにコピー
+	}
+
+  // 累積標高の表示
+	if ( (accEleUp != 0) || (accEleDwn != 0)){
+		document.querySelector("#ttlUp").innerHTML = Math.round(accEleUp * 10) / 10 + " m";
+		writeTex2 = "上り累積標高(m)," +  (Math.round(accEleUp * 10) / 10) + "\n";
+		document.querySelector("#ttlDwm").innerHTML = Math.round(accEleDwn * 10) / 10 + " m";
+		writeTex2 += "下り累積標高(m)," +  (Math.round(accEleDwn * 10) / 10) + "\n";
+	}else{
+		document.querySelector("#ttlUp").innerHTML = "標高データ無し";
+		document.querySelector("#ttlDwm").innerHTML = "標高データ無し";
+	}
+  // データポイント数の表示
+	document.querySelector("#numPoint1").innerHTML = totalPint; //  総データポイント数
+	document.querySelector("#numPoint2").innerHTML = PtTimeArr.length; // 有効データポイント数
+}
+
+
+function rest_matk(){
+// 停止判定 フラグ配列(RestFlagArr) 0:行動 1:停止
+	RestFlagArr.length = 0;
+	MovVeloArr.length = 0;
+	let partVavg = 0, acctim = 0, accDis = 0, J = 1;
+	MovVeloArr.push(partVavg);
+	RestFlagArr.push(0);
+	for ( i = 0 ;  i <= PtDistArr.length ; i++ ){
+		if (PtDistArr[i] === 0){
+			RestFlagArr.push(1);
+		}else if (PtTimeArr[i] > 60){
+			MovVeloArr.push(PtVeloArr[i]);
+			(PtVeloArr[i] < 0.1) ? RestFlagArr.push(1): RestFlagArr.push(0);
+		}else{
+			acctim = 0;
+			accDis = 0;
+			let j = 1;
+			while (acctim < 60){
+				if ( i+j >= PtDistArr.length){ break;}
+				accDis += PtDistArr[i+j];
+				acctim += PtTimeArr[i+j];
+				j++;
+			}
+			partVavg = accDis / acctim;
+			MovVeloArr.push(partVavg);
+			(partVavg < 0.1) ? RestFlagArr.push(1): RestFlagArr.push(0);
+		}
+	}
+}
+
+
+function deel_summary(){
+// trkpt毎のデータ配列から各値を求める
+	if (flgErr1 === 0 ){return;} // ファイルが読み込まれていない時
+  // 傾斜値の設定
+	let upTh0 = parseInt( document.getElementById("thUp0").value ) / 100; 
+	let upTh1 = parseInt( document.getElementById("thUp1").value ) / 100; 
+	let upTh2 = parseInt( document.getElementById("thUp2").value ) / 100; 
+	let upTh3 = parseInt( document.getElementById("thUp3").value ) / 100; 
+	let upTh4 = parseInt( document.getElementById("thUp4").value ) / 100; 
+	let upTh5 = parseInt( document.getElementById("thUp5").value ) / 100; 
+	let dwnTh0 = parseInt( document.getElementById("thDwn0").value ) / 100; 
+	let dwnTh1 = parseInt( document.getElementById("thDwn1").value ) / 100; 
+	let dwnTh2 = parseInt( document.getElementById("thDwn2").value ) / 100; 
+	let dwnTh3 = parseInt( document.getElementById("thDwn3").value ) / 100; 
+	let dwnTh4 = parseInt( document.getElementById("thDwn4").value ) / 100; 
+	let dwnTh5 = parseInt( document.getElementById("thDwn5").value ) / 100; 
+
+	let sumUp0 = [0,0,0]; let sumDwn0 = [0,0,0]; // 集計用配列 [ 数, 距離, 速度] 初期化 
+	let sumUp1 = [0,0,0]; let sumDwn1 = [0,0,0];
+	let sumUp2 = [0,0,0]; let sumDwn2 = [0,0,0];
+	let sumUp3 = [0,0,0]; let sumDwn3 = [0,0,0];
+	let sumUp4 = [0,0,0]; let sumDwn4 = [0,0,0];
+	let sumUp5 = [0,0,0]; let sumDwn5 = [0,0,0];
+	let sumUp6 = [0,0,0]; let sumDwn6 = [0,0,0];
+	let restTim = 0;
+
+  // 標高差によって距離/速度を集計するループ
+	for ( let i = 1 ; i < PtDistArr.length ; i++ ){
+		if (RestFlagArr[i] === 0){
+			if (PtBaloArr[i] >= upTh5 ){ 
+				sumUp6[0]++; sumUp6[1] += PtDistArr[i]; sumUp6[2] += PtVeloArr[i]; 
+			}else if (PtBaloArr[i] >= upTh4){
+				sumUp5[0]++; sumUp5[1] += PtDistArr[i]; sumUp5[2] += PtVeloArr[i]; 
+			}else if (PtBaloArr[i] >= upTh3){
+				sumUp4[0]++; sumUp4[1] += PtDistArr[i]; sumUp4[2] += PtVeloArr[i]; 
+			}else if (PtBaloArr[i] >= upTh2){
+				sumUp3[0]++; sumUp3[1] += PtDistArr[i]; sumUp3[2] += PtVeloArr[i]; 
+			}else if (PtBaloArr[i] >= upTh1){
+				sumUp2[0]++; sumUp2[1] += PtDistArr[i]; sumUp2[2] += PtVeloArr[i]; 
+			}else if (PtBaloArr[i] >= upTh0){
+				sumUp1[0]++; sumUp1[1] += PtDistArr[i]; sumUp1[2] += PtVeloArr[i]; 
+			}else if (PtBaloArr[i] >= 0){
+				sumUp0[0]++; sumUp0[1] += PtDistArr[i]; sumUp0[2] += PtVeloArr[i]; 
+			}else if (PtBaloArr[i] >= dwnTh0){
+				sumDwn0[0]++; sumDwn0[1] += PtDistArr[i]; sumDwn0[2] += PtVeloArr[i]; 
+			}else if (PtBaloArr[i] >= dwnTh1){
+				sumDwn1[0]++; sumDwn1[1] += PtDistArr[i]; sumDwn1[2] += PtVeloArr[i]; 
+			}else if (PtBaloArr[i] >= dwnTh2){
+				sumDwn2[0]++; sumDwn2[1] += PtDistArr[i]; sumDwn2[2] += PtVeloArr[i]; 
+			}else if (PtBaloArr[i] >= dwnTh3){
+				sumDwn3[0]++; sumDwn3[1] += PtDistArr[i]; sumDwn3[2] += PtVeloArr[i]; 
+			}else if (PtBaloArr[i] >= dwnTh4){
+				sumDwn4[0]++; sumDwn4[1] += PtDistArr[i]; sumDwn4[2] += PtVeloArr[i]; 
+			}else if (PtBaloArr[i] >= dwnTh5){
+				sumDwn5[0]++; sumDwn5[1] += PtDistArr[i]; sumDwn5[2] += PtVeloArr[i]; 
+			}else{
+				sumDwn6[0]++; sumDwn6[1] += PtDistArr[i]; sumDwn6[2] += PtVeloArr[i]; 
+			}
+		}else{
+			restTim += PtTimeArr[i];
+		}
+	}
+
+  // 総距離の表示
+ 	let totalDisMov = sumUp0[1] + sumUp1[1] + sumUp2[1] + sumUp3[1] + sumUp4[1] + sumUp5[1] + sumUp6[1] + sumDwn0[1] + sumDwn1[1] + sumDwn2[1] + sumDwn3[1] + sumDwn4[1] + sumDwn5[1] + sumDwn6[1];
+		document.querySelector("#ttlDist").innerHTML = (Math.round( totalDisMov ) / 1000) + " Km"; 
+		writeTex3 += "合計距離Km," + (Math.round( totalDisMov ) / 1000) + "\n";
+	let SlpDis = PtSlopArr.reduce(function(sum, element){ return sum + element; }, 0);
+		document.querySelector("#ttlDist1").innerHTML = (Math.round( SlpDis ) / 1000) + " Km"; 
+		writeTex3 = "沿面距離Km," + (Math.round( SlpDis ) / 1000) + "\n";
+
+  // 合計時間および休息時間の表示
+	if (flgErr1 === 1){
+		let totalTim = PtTimeArr.reduce(function(sum, element){ return sum + element; }, 0); // 合計時間
+		let hh = Math.floor( totalTim / 3600);
+		let mm = Math.floor(( totalTim % 3600) / 60 );
+		let ss = Math.floor(( totalTim % 3600) % 60 );
+		let totalTimStr = hh + "時間" + mm + "分" + ss + "秒"; // (" + totalTim + "秒)";
+		document.querySelector("#ttlTim").innerHTML = totalTimStr;
+			writeTex3 += "合計時間," + totalTimStr + "\n";
+		hh = Math.floor( restTim / 3600); // rest time; // 休息時間
+		mm = Math.round(( restTim % 3600) / 60 );
+		totalTimStr = hh + "時間" + mm + "分"; //
+		document.querySelector("#stpTim").innerHTML = totalTimStr;
+			writeTex3 += "休息時間," + totalTimStr + "\n";
+	}else{
+		document.querySelector("#ttlTim").innerHTML = "時間データなし";
+	}
+
+  // 最高地点および最低地点の標高表示
+	let altiMax = Math.max.apply(null, PtElevArr); // 最高地点
+		document.querySelector("#maxAlti").innerHTML = (Math.round( altiMax * 10 ) / 10) + " m";
+		writeTex3 += "最高地点の標高(m)," + (Math.round( altiMax * 10 ) / 10) + "\n";
+	let altiMin = Math.min.apply(null, PtElevArr); // 最低地点
+		document.querySelector("#minAlti").innerHTML = (Math.round( altiMin * 10 ) / 10) + " m";
+		writeTex3 += "最低点地の標高(m)," + (Math.round( altiMin * 10 ) / 10) + "\n";
+		writeTex3 += writeTex2;
+
+  // 傾斜毎の合計距離(Km)
+	document.querySelector("#up0dist").innerHTML = (Math.round( sumUp0[1] ) / 1000).toFixed(3);
+	document.querySelector("#up1dist").innerHTML = (Math.round( sumUp1[1] ) / 1000).toFixed(3);
+	document.querySelector("#up2dist").innerHTML = (Math.round( sumUp2[1] ) / 1000).toFixed(3);
+	document.querySelector("#up3dist").innerHTML = (Math.round( sumUp3[1] ) / 1000).toFixed(3);
+	document.querySelector("#up4dist").innerHTML = (Math.round( sumUp4[1] ) / 1000).toFixed(3);
+	document.querySelector("#up5dist").innerHTML = (Math.round( sumUp5[1] ) / 1000).toFixed(3);
+	document.querySelector("#up6dist").innerHTML = (Math.round( sumUp6[1] ) / 1000).toFixed(3);
+
+	document.querySelector("#dwn0dist").innerHTML = (Math.round( sumDwn0[1] ) / 1000).toFixed(3);
+	document.querySelector("#dwn1dist").innerHTML = (Math.round( sumDwn1[1] ) / 1000).toFixed(3);
+	document.querySelector("#dwn2dist").innerHTML = (Math.round( sumDwn2[1] ) / 1000).toFixed(3);
+	document.querySelector("#dwn3dist").innerHTML = (Math.round( sumDwn3[1] ) / 1000).toFixed(3);
+	document.querySelector("#dwn4dist").innerHTML = (Math.round( sumDwn4[1] ) / 1000).toFixed(3);
+	document.querySelector("#dwn5dist").innerHTML = (Math.round( sumDwn5[1] ) / 1000).toFixed(3);
+	document.querySelector("#dwn6dist").innerHTML = (Math.round( sumDwn6[1] ) / 1000).toFixed(3);
+
+  // 傾斜毎の平均速度(Km/h)
+	let avgVup0 = (sumUp0[0] == 0) ? 0 : (Math.round( sumUp0[2] * 360 / sumUp0[0] ) /100).toFixed(2);
+	let avgVup1 = (sumUp1[0] == 0) ? 0 : (Math.round( sumUp1[2] * 360 / sumUp1[0] ) /100).toFixed(2);
+	let avgVup2 = (sumUp2[0] == 0) ? 0 : (Math.round( sumUp2[2] * 360 / sumUp2[0] ) /100).toFixed(2);
+	let avgVup3 = (sumUp3[0] == 0) ? 0 : (Math.round( sumUp3[2] * 360 / sumUp3[0] ) /100).toFixed(2);
+	let avgVup4 = (sumUp4[0] == 0) ? 0 : (Math.round( sumUp4[2] * 360 / sumUp4[0] ) /100).toFixed(2);
+	let avgVup5 = (sumUp5[0] == 0) ? 0 : (Math.round( sumUp5[2] * 360 / sumUp5[0] ) /100).toFixed(2);
+	let avgVup6 = (sumUp6[0] == 0) ? 0 : (Math.round( sumUp6[2] * 360 / sumUp5[0] ) /100).toFixed(2);
+
+	let avgVdwn0 = (sumDwn0[0] == 0) ? 0 : (Math.round( sumDwn0[2] * 360 / sumDwn0[0] ) /100).toFixed(2);
+	let avgVdwn1 = (sumDwn1[0] == 0) ? 0 : (Math.round( sumDwn1[2] * 360 / sumDwn1[0] ) /100).toFixed(2);
+	let avgVdwn2 = (sumDwn2[0] == 0) ? 0 : (Math.round( sumDwn2[2] * 360 / sumDwn2[0] ) /100).toFixed(2);
+	let avgVdwn3 = (sumDwn3[0] == 0) ? 0 : (Math.round( sumDwn3[2] * 360 / sumDwn3[0] ) /100).toFixed(2);
+	let avgVdwn4 = (sumDwn4[0] == 0) ? 0 : (Math.round( sumDwn4[2] * 360 / sumDwn4[0] ) /100).toFixed(2);
+	let avgVdwn5 = (sumDwn5[0] == 0) ? 0 : (Math.round( sumDwn5[2] * 360 / sumDwn5[0] ) /100).toFixed(2);
+	let avgVdwn6 = (sumDwn6[0] == 0) ? 0 : (Math.round( sumDwn6[2] * 360 / sumDwn6[0] ) /100).toFixed(2);
+
+	document.querySelector("#up0velo").innerHTML = avgVup0;
+	document.querySelector("#up1velo").innerHTML = avgVup1;
+	document.querySelector("#up2velo").innerHTML = avgVup2;
+	document.querySelector("#up3velo").innerHTML = avgVup3;
+	document.querySelector("#up4velo").innerHTML = avgVup4;
+	document.querySelector("#up5velo").innerHTML = avgVup5;
+	document.querySelector("#up6velo").innerHTML = avgVup6;
+
+	document.querySelector("#dwn0velo").innerHTML = avgVdwn0;
+	document.querySelector("#dwn1velo").innerHTML = avgVdwn1;
+	document.querySelector("#dwn2velo").innerHTML = avgVdwn2;
+	document.querySelector("#dwn3velo").innerHTML = avgVdwn3;
+	document.querySelector("#dwn4velo").innerHTML = avgVdwn4;
+	document.querySelector("#dwn5velo").innerHTML = avgVdwn5;
+	document.querySelector("#dwn6velo").innerHTML = avgVdwn6;
+
+	writeTex3 += "傾斜,合計距離(Km),平均速度(Km/h)\n";
+	writeTex3 += document.getElementById("thUp0").value + "/100m," + (Math.round( sumUp0[1] ) / 1000).toFixed(3) + "," + avgVup0 + "\n";
+	writeTex3 += document.getElementById("thUp1").value + "/100m," + (Math.round( sumUp1[1] ) / 1000).toFixed(3) + "," + avgVup1 + "\n";
+	writeTex3 += document.getElementById("thUp2").value + "/100m," + (Math.round( sumUp2[1] ) / 1000).toFixed(3) + "," + avgVup2 + "\n";
+	writeTex3 += document.getElementById("thUp3").value + "/100m," + (Math.round( sumUp3[1] ) / 1000).toFixed(3) + "," + avgVup3 + "\n";
+	writeTex3 += document.getElementById("thUp4").value + "/100m," + (Math.round( sumUp4[1] ) / 1000).toFixed(3) + "," + avgVup4 + "\n";
+	writeTex3 += document.getElementById("thUp5").value + "/100m," + (Math.round( sumUp5[1] ) / 1000).toFixed(3) + "," + avgVup5 + "\n";
+	writeTex3 += "それ以上," + (Math.round( sumUp6[1] ) / 1000).toFixed(3) + "," + avgVup6 + "\n";
+
+	writeTex3 += document.getElementById("thDwn0").value + "/100m," + (Math.round( sumDwn0[1] ) / 1000).toFixed(3) + "," + avgVdwn0 + "\n";
+	writeTex3 += document.getElementById("thDwn1").value + "/100m," + (Math.round( sumDwn1[1] ) / 1000).toFixed(3) + "," + avgVdwn1 + "\n";
+	writeTex3 += document.getElementById("thDwn2").value + "/100m," + (Math.round( sumDwn2[1] ) / 1000).toFixed(3) + "," + avgVdwn2 + "\n";
+	writeTex3 += document.getElementById("thDwn3").value + "/100m," + (Math.round( sumDwn3[1] ) / 1000).toFixed(3) + "," + avgVdwn3 + "\n";
+	writeTex3 += document.getElementById("thDwn4").value + "/100m," + (Math.round( sumDwn4[1] ) / 1000).toFixed(3) + "," + avgVdwn4 + "\n";
+	writeTex3 += document.getElementById("thDwn5").value + "/100m," + (Math.round( sumDwn5[1] ) / 1000).toFixed(3) + "," + avgVdwn5 + "\n";
+	writeTex3 += "それ以上," + (Math.round( sumDwn6[1] ) / 1000).toFixed(3) + "," + avgVdwn6 + "\n";
+}
+
+
+function drw_ele_graph(){
+// 標高グラフ描画
+	let cvs1 = document.getElementById("cnvs1"); // canvas要素の取得
+	let cntx = cvs1.getContext("2d"); // 2D Context(制御情報)を取得
+	if (!cvs1 || !cvs1.getContext){
+		alert("can't canvas");
+		return false;
+	}
+	let i, Xindx, Yindx;
+	let lft_mrgn = 70; let rit_mrgn = 30; // 	左右マージン
+	let btm_mrgn = 50; let top_mrgn = 50; // 上下マージン
+	let areaW = cvs1.getAttribute("width") - lft_mrgn - rit_mrgn; // グラフエリア幅
+	let areaH = cvs1.getAttribute("height") - btm_mrgn - top_mrgn; // グラフエリア高さ
+	let X0 = lft_mrgn; let Y0 = top_mrgn + areaH; // 原点座標
+	cntx.clearRect(0, 0, cvs1.getAttribute("width"), cvs1.getAttribute("height"));
+	cntx.beginPath();
+	cntx.strokeStyle = "rgb(0,0,0)";
+	cntx.font = "15px serif";
+	cntx.textAlign = "center";
+	cntx.fillText("標高グラフ", cvs1.getAttribute("width") / 2, top_mrgn / 2 );
+  // X軸
+	cntx.textAlign = "center";
+	cntx.textBaseline = "top";
+	cntx.moveTo( X0, Y0 );
+	cntx.lineTo( X0 + areaW, Y0 );
+	let Xunit;
+	if ( document.selbttn1.GraSel.value === "Dist" ){ // X軸の選択
+		let AllDist = PtDistArr.reduce((sum, element) => sum + element, 0);
+		let AllDistKm = Math.round( AllDist / 100 ) / 10;
+		let XmarkPich = Math.round(areaW / AllDistKm); // X軸スケール目盛ピッチ
+		Xunit = AllDist / areaW;  // 1pixあたりの距離 m/pix
+		for (let i = 0; i < AllDistKm ; i++){
+			cntx.moveTo( X0 + i * XmarkPich, Y0 );
+			cntx.lineTo( X0 + i * XmarkPich, Y0-5 );
+			cntx.fillText( i, X0 + i * XmarkPich, Y0+2 );
+		}
+		cntx.fillText("距離(Km)", X0 + areaW / 2, Y0 + btm_mrgn / 2 );
+	}else{
+		let AllTime = PtTimeArr.reduce((sum, element) => sum + element, 0);
+		let AllTimeHr = Math.round( AllTime / 3600 );
+		let XmarkPich = Math.round(areaW / AllTimeHr); // X軸スケール目盛ピッチ
+		Xunit = AllTime / areaW;  // 1pixあたりの時間 s/pix
+		for (let i = 0; i < AllTimeHr ; i++){
+			cntx.moveTo( X0 + i * XmarkPich, Y0 );
+			cntx.lineTo( X0 + i * XmarkPich, Y0-5 );
+			cntx.fillText( i, X0 + i * XmarkPich, Y0+2 );
+		}
+		cntx.fillText("時間", X0 + areaW / 2, Y0 + btm_mrgn / 2 );
+	}
+  // Y軸
+	let Ymax = Math.round( Math.max.apply(null, PtElevArr) );
+	let Ymin = Math.round( Math.min.apply(null, PtElevArr) );
+	let Yspn = Ymax - Ymin; // Y軸スパン
+	let Yuit = Yspn / areaH ; // 1pixあたりの標高
+	let YmarkPich; // Y軸スケール目盛ピッチ
+	if (Yspn > 1500){ 
+		YmarkPich = 500;
+	}else if (Yspn > 500){
+		YmarkPich = 250;
+	}else{
+		YmarkPich = 100;
+	}
+	let YmkNum = Math.floor( Ymin / YmarkPich ) + 1; // Y軸スケール用インデックス
+	cntx.textAlign = "end";
+	cntx.textBaseline = "middle";
+	cntx.moveTo( X0, Y0 );
+	cntx.lineTo( X0, Y0 - areaH - 20 );
+	for ( i = 0; i < areaH + 20 ; i++){
+		Yindx = Ymin + i * Yuit;
+		if ( Yindx > YmkNum * YmarkPich ){
+			cntx.moveTo( X0, Y0 - i );
+			cntx.lineTo( X0+5, Y0 - i );
+			cntx.fillText(YmkNum * YmarkPich, X0 -5, Y0 - i );
+			YmkNum++;
+		}
+	}
+	cntx.save();
+	cntx.translate( lft_mrgn / 2, Y0 - areaH / 2);
+	cntx.rotate(-0.5* Math.PI);
+	cntx.fillText("	標高(m)", (lft_mrgn / 2) + 20, -15 );
+	cntx.stroke();
+	cntx.restore();
+  // グラフ描画
+	cntx.save();
+	cntx.beginPath();
+	cntx.lineWidth = 3;
+	cntx.strokeStyle = "rgb(255,0,0)";
+	let Xvalu = 0;
+	cntx.moveTo( X0, Y0 - Math.floor( (PtElevArr[0] - Ymin) / Yuit));
+	for ( i = 1; i < PtDistArr.length; i++){
+		( document.selbttn1.GraSel.value === "Dist" ) ? Xvalu += PtDistArr[i]: Xvalu += PtTimeArr[i];
+		Xindx = Math.floor( Xvalu / Xunit );
+		Yindx = Math.floor( (PtElevArr[i] - Ymin)  / Yuit );
+		cntx.lineTo( X0 + Xindx, Y0 - Yindx);
+	}
+	cntx.stroke();  
+	cntx.restore();
+	return;
+}
+
+
+function drw_sct_plot(){
+// 昇降値vs速度分布図
+	let cvs2 = document.getElementById("cnvs2"); // canvas要素の取得
+	let cntx2 = cvs2.getContext("2d"); // 2D Context(制御情報)を取得
+	if (!cvs2 || !cvs2.getContext){
+		alert("can't canvas");
+		return false;
+	}
+	let lft_mrgn = 70; let rit_mrgn = 30; // 左右マージン
+	let btm_mrgn = 50; let top_mrgn = 50; // 上下マージン
+	let areaW = cvs2.getAttribute("width") - lft_mrgn - rit_mrgn; // グラフエリア幅
+	let areaH = cvs2.getAttribute("height") - btm_mrgn - top_mrgn; // グラフエリア高さ
+	let X0 = lft_mrgn + areaW / 2; let Y0 = top_mrgn + areaH; // 原点座標
+	cntx2.clearRect(0, 0, cvs2.getAttribute("width"), cvs2.getAttribute("height"));
+	cntx2.strokeStyle = "rgb(0,0,0)";
+	cntx2.font = "15px serif";
+	cntx2.textAlign = "start";
+	cntx2.textBaseline = "bottom";
+	cntx2.fillText("昇降値(傾斜)vs速度の分布", lft_mrgn / 2 , top_mrgn / 2);
+  // X軸(昇降値)描画
+	// ラジオボタンでXmax選択
+	let strXmax = "";
+	let XmaxSel = document.selbttn3.XsMaxVal;
+	for (let i = 0; i < XmaxSel.length; i++){
+		if(XmaxSel[i].checked){ 
+			strXmax = XmaxSel[i].value;
+			break;
+		}
+	}
+	let Xmax = parseInt( strXmax );
+	cntx2.textAlign = "center";
+	cntx2.textBaseline = "top";
+	cntx2.moveTo( X0 - areaW / 2, Y0 );
+	cntx2.lineTo( X0 + areaW / 2 + 2, Y0 );
+	let Xunit =  Xmax * 2 / areaW ;  // 1pixあたりの昇降値
+	let XmarkPich = Math.round( areaW / 8 ); // X軸スケール目盛ピッチ
+	for (let i = 0; i < 9 ; i++){
+		cntx2.moveTo( X0 - areaW / 2 + i * XmarkPich, Y0 );
+		cntx2.lineTo( X0 - areaW / 2 + i * XmarkPich, Y0-5 );
+		cntx2.fillText( -1 * Xmax + i * 2 * Xmax / 8, X0- areaW / 2 + i * XmarkPich, Y0+2 );
+	}
+	cntx2.fillText("昇降値(傾斜 X/100m)", X0, Y0 + btm_mrgn / 2 );
+	cntx2.stroke();
+  // Y軸定数設定
+	let totaltim = PtTmDifArr.reduce((sum, element) => sum + element, 0);
+	let Yavg = (PtVeloArr.reduce((sum, element) => sum + element, 0) / PtVeloArr.length) * 3.6 ;
+	let Ymax = Math.round(Yavg * 2);
+	let Yunit = areaH / Ymax ; // 1pixあたりの速度
+	let YmarkNum = ( Ymax < 8 ) ? Ymax: Math.round(Ymax / 2); // Y軸スケール目盛数
+	let YmarkPich = areaH / YmarkNum; // Y軸スケール目盛ピッチ
+  // 分布描画
+	cntx2.save();
+	cntx2.beginPath();
+	cntx2.lineWidth = 3;
+	cntx2.strokeStyle = "rgb(255,0,0)";
+	for ( i = 1; i < PtTmDifArr.length; i++){
+		let Xval = X0 + PtBaloArr[i] * 100 / Xunit;
+		let Yval = Y0 - PtVeloArr[i] * 3600 / Yunit;
+		if ( Xval > lft_mrgn && Xval < (lft_mrgn + areaW) && Yval > top_mrgn ){
+		cntx2.beginPath();
+		cntx2.arc( Xval, Yval, 1, 0, Math.PI);
+		cntx2.stroke();  
+		}
+	}
+	cntx2.restore();
+  // Y軸描画 分布点で隠されないように後書き
+	cntx2.textAlign = "end";
+	cntx2.textBaseline = "middle";
+	cntx2.moveTo( X0 , Y0 );
+	cntx2.lineTo( X0 , Y0 - areaH );
+	for ( i = 1; i < YmarkNum ; i++){
+		cntx2.moveTo(  X0 -5 , Y0 - i * YmarkPich );
+		cntx2.lineTo( X0 + 5 , Y0 - i * YmarkPich );
+		cntx2.fillText(i, X0 - 10 , Y0 - i * YmarkPich );
+	}
+	cntx2.textAlign = "center";
+	cntx2.textBaseline = "bottom";
+	cntx2.fillText("	速度(Km/H)", X0 , Y0 - areaH - 12  );
+	cntx2.stroke();
+	return;
+}
+
+
+function Recalcu(){
+	Reduce_log(); // step1-1
+	make_data_arry(); // step2
+	rest_matk(); // step3
+	deel_summary(); // step4
+	drw_ele_graph(); // step5
+	drw_sct_plot(); // step6
+}
+
+
+function downloadText() {
+// 集計結果ファイル出力
+	if (flgErr1 != 1 ){ alert("有効なGPXファイルが読み込まれていません"); return;}
+	let string = writeTex1 + writeTex3; // ファイル出力するストリングス
+	let title = writeFilNam.split( "." )[0] + "_SD.csv"; // 出力するファイル名
+	let linkTag = document.getElementById("getLocal");
+	let linkTagAttr =  ["href","download"];
+ 	let bom = new Uint8Array([0xEF, 0xBB, 0xBF]); // BOMコード追加（excel文字化け対策）
+	let stringObject = new Blob( [bom, string], { type: "text/plain" } );
+	let objectURL = window.URL.createObjectURL(stringObject);   
+	linkTag.setAttribute(linkTagAttr[0],objectURL);
+	linkTag.setAttribute(linkTagAttr[1],title); 
+}
+
+function download2log() {
+// 間引きログ出力 
+	if (flgErr1 != 1 ){ alert("有効なGPXファイルが読み込まれていません"); return;}
+	let string = readTxt;// ファイル出力するストリングス(間引きしたログファイル)
+	let title = writeFilNam.split( "." )[0] + "_RD.gpx"; // 出力するファイル名
+	let linkTag = document.getElementById( "getLocal2" );
+	let linkTagAttr =  ["href","download"];
+	let stringObject = new Blob( [string], { type: "text/plain" } );
+	let objectURL = window.URL.createObjectURL( stringObject );   
+	linkTag.setAttribute( linkTagAttr[0], objectURL );
+	linkTag.setAttribute( linkTagAttr[1], title ); 
+}
+
+</script>
+
+</body>
+</html>

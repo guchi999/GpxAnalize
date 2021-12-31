@@ -26,7 +26,7 @@
   </script>
 </head>
 <body>
-	【ログ解析v1.1】 <b>破線のエリアにログ(GPX)ファイルをドロップするか、ボタンを押してファイルを選択してください。</b>
+	【ログ解析v1.2】 <b>破線のエリアにログ(GPX)ファイルをドロップするか、ボタンを押してファイルを選択してください。</b>
 	<form name="entFil">	
 		<input type="file" id="selfile"><br>
 <!-- テキストエリア表示する場合はコメントにしない 
@@ -73,7 +73,7 @@
 		🞛データの間引き：
 		<input type="radio" name="reduce" value="no" checked> しない
 		<input type="radio" name="reduce" value="yes" > する
-		<input type="number" id="reduceInt" size="4"  min="0" max="50" value="10" style="width:3em;">ｍ間隔でを間引く<br>
+		<input type="number" id="reduceInt" size="4"  min="0" max="50" value="8" style="width:3em;">ｍ間隔でログを間引く<br>
 	</form>
 	</div>
 
@@ -92,39 +92,39 @@
 			<th>傾斜</th><th>距離合計(Km)</th><th>平均速度(Km/h)</th>
 		</tr>
 		<tr align="center">
-			<td><input type="number" id="thUp0" size="6"  min="1" max="200" style="width:3em;">/100mまで</td>
+			<td><input type="number" id="thUp0" size="6"  min="0" max="200" style="width:3.5em;" step="10">/100mまで</td>
 			<td id="up0dist">0</td><td id="up0velo">0</td>
-			<td><input type="number" id="thDwn0" size="6"  min="-200" max="-1" style="width:3em;">/100mまで</td>
+			<td><input type="number" id="thDwn0" size="6"  min="-200" max="0" style="width:3.5em;" step="10">/100mまで</td>
 			<td id="dwn0dist">0</td><td id="dwn0velo">0</td>
 		</tr>
 		<tr align="center">
-			<td><input type="number" id="thUp1" size="6"  min="1" max="200" style="width:3em;">/100mまで</td>
+			<td><input type="number" id="thUp1" size="6"  min="0" max="200" style="width:3.5em;" step="10">/100mまで</td>
 			<td id="up1dist">0</td><td id="up1velo">0</td>
-			<td><input type="number" id="thDwn1" size="6"  min="-200" max="-1" style="width:3em;">/100mまで</td>
+			<td><input type="number" id="thDwn1" size="6"  min="-200" max="0" style="width:3.5em;" step="10">/100mまで</td>
 			<td id="dwn1dist">0</td><td id="dwn1velo">0</td>
 		</tr>
 		<tr align="center">
-			<td><input type="number" id="thUp2" size="6"  min="1" max="200" style="width:3em;">/100mまで</td>
+			<td><input type="number" id="thUp2" size="6"  min="0" max="200" style="width:3.5em;" step="10">/100mまで</td>
 			<td id="up2dist">0</td><td id="up2velo">0</td>
-			<td><input type="number" id="thDwn2" size="6"  min="-200" max="-1" style="width:3em;">/100mまで</td>
+			<td><input type="number" id="thDwn2" size="6"  min="-200" max="0" style="width:3.5em;" step="10">/100mまで</td>
 			<td id="dwn2dist">0</td><td id="dwn2velo">0</td>
 		</tr>
 		<tr align="center">
-			<td><input type="number" id="thUp3" size="6"  min="1" max="200" style="width:3em;">/100mまで</td>
+			<td><input type="number" id="thUp3" size="6"  min="0" max="200" style="width:3.5em;" step="10">/100mまで</td>
 			<td id="up3dist">0</td><td id="up3velo">0</td>
-			<td><input type="number" id="thDwn3" size="6"  min="-200" max="-1" style="width:3em;">/100mまで</td>
+			<td><input type="number" id="thDwn3" size="6"  min="-200" max="0" style="width:3.5em;" step="10">/100mまで</td>
 			<td id="dwn3dist">0</td><td id="dwn3velo">0</td>
 		</tr>
 		<tr align="center">
-			<td><input type="number" id="thUp4" size="6"  min="1" max="200" style="width:3em;">/100mまで</td>
+			<td><input type="number" id="thUp4" size="6"  min="0" max="200" style="width:3.5em;" step="10">/100mまで</td>
 			<td id="up4dist">0</td><td id="up4velo">0</td>
-			<td><input type="number" id="thDwn4" size="6"  min="-200" max="-1" style="width:3em;">/100mまで</td>
+			<td><input type="number" id="thDwn4" size="6"  min="-200" max="0" style="width:3.5em;" step="10">/100mまで</td>
 			<td id="dwn4dist">0</td><td id="dwn4velo">0</td>
 		</tr>
 		<tr align="center">
-			<td><input type="number" id="thUp5" size="6"  min="1" max="200" style="width:3em;">/100mまで</td>
+			<td><input type="number" id="thUp5" size="6"  min="0" max="200" style="width:3.5em;" step="10">/100mまで</td>
 			<td id="up5dist">0</td><td id="up5velo">0</td>
-			<td><input type="number" id="thDwn5" size="6"  min="-200" max="-1" style="width:3em;">/100mまで</td>
+			<td><input type="number" id="thDwn5" size="6"  min="-200" max="0" style="width:3.5em;" step="10">/100mまで</td>
 			<td id="dwn5dist">0</td><td id="dwn5velo">0</td>
 		</tr>
 		<tr align="center">
@@ -241,7 +241,7 @@ function disp_clr(){
 	BtnSts1[0].checked = true;
 	let BtnSts2 = document.getElementsByName( "reduce" );
 	BtnSts2[0].checked = true;
-	document.getElementById( "reduceInt" ).value = "10";
+	document.getElementById( "reduceInt" ).value = "8";
 	document.getElementById( "waitT" ).value = "0";
 	let cvs1 = document.getElementById("cnvs1"); // 標高グラフ消去
 	let cntx = cvs1.getContext("2d");
